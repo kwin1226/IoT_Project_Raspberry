@@ -1,9 +1,16 @@
-mport RPi.GPIO as GPIO
+import RPi.GPIO as GPIO
+import sys
 import time
 
+if len(sys.argv) < 2: 
+        print ('please input pin num!')
+        sys.exit()
+
+pin = int(sys.argv[1])
+print("OK! LED GPIO pin:" + str(pin))
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
-GPIO.setup(4,GPIO.OUT)
+GPIO.setup(pin,GPIO.OUT)
 
 user = input("-------Choose one mode--------\n 1.Light up 2.Light down 3.Keep blinking 4.exit\n")
 

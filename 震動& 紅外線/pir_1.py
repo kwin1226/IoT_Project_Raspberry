@@ -1,5 +1,6 @@
 # Import required Python libraries
 import RPi.GPIO as GPIO
+import os
 import time
 
 # Use BCM GPIO references
@@ -43,7 +44,8 @@ try:
         time.sleep(0.2)
         GPIO.output(4,0)
         time.sleep(0.2)
-
+      os.system("python Trans_DHT.py 11 17")
+      
       # Record previous state
       Previous_State=1
     elif Current_State==0 and Previous_State==1:
