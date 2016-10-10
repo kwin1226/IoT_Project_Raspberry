@@ -1,12 +1,24 @@
 #!/usr/bin/python
-# encoding: utf-8
-# Function: 
-#           1.upload sensors data through web api
-#           2.detect accident
-#           3.when a person leave, the transmission will end
-#
-# Author: Andrew Shen
+# Copyright (c) 2014 Adafruit Industries
+# Author: Tony DiCola
 
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 import os
 import sys
 import Adafruit_DHT
@@ -16,7 +28,8 @@ from datetime import datetime
 import urllib
 import urllib2, base64
 import MySQLdb
-import getRules
+import socketInit
+# import getRules
 
 t1 = time.strftime("%Y-%m-%d %H:%M:%S") # for example
 
@@ -41,31 +54,21 @@ t1 = time.strftime("%Y-%m-%d %H:%M:%S") # for example
 #   cursor.close()
 #   db.close()
 
-def GetRules():
-  print "Get rules data..."
-  u = "testuser"
-  p = "testpassword"
-  eid = "Rasp03"
-  geturl = "http://140.138.77.152:5000/v1.0/demand/getjoin"
-  method = "GET"
-  jsonRules = getRules.main(u, p, eid, geturl, method)
-  return jsonRules
-
-def loadData(temperature, humidity, vibe_flag):
-
-  t2 = time.strftime("%Y-%m-%d %H:%M:%S")
-  print('Temp={0:0.1f}*  Humidity={1:0.1f}%'.format(temperature, humidity))
-  tdelta = datetime.strptime(t2, FMT) - datetime.strptime(t1, FMT)
-  print('Total time:' + str(tdelta))
-  uploadHis(temperature, humidity, vibe_flag ,t2,tdelta)
-  vibe_flag = 0
-  time.sleep(5)
+# def GetRules():
+#   print "Get rules data..."
+#   u = "testuser"
+#   p = "testpassword"
+#   eid = "Rasp01"
+#   geturl = "http://140.138.77.152:5000/v1.0/demand/getjoin"
+#   method = "GET"
+#   jsonRules = getRules.main(u, p, eid, geturl, method)
+#   return jsonRules
 
 def uploadHis(temperature, humidity, vibeState,curTime,useTime):
   url_con ="http://140.138.77.152:5000/v1.0/history"
   data = {
     "eid":"Rasp01",
-    "eveid":"2", #default
+    "eveid":"1", #default
     "historyTem":temperature,
     "historyHum":humidity,
     "historyAccident":vibeState,
@@ -100,84 +103,41 @@ else:
 
 # Try to grab a sensor reading.  Use the read_retry method which will retry up
 # to 15 times to get a sensor reading (waiting 2 seconds between each retry).
-
 # jsonRules = GetRules()
 # print(jsonRules)
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
-GPIO_LED = 4
 GPIO_PIR = 7
-GPIO_Sounds = 22
-GPIO_Vibe = 27
-LED_flg = False
 GPIO.setup(GPIO_PIR,GPIO.IN)
-GPIO.setup(GPIO_LED,GPIO.OUT)
-GPIO.setup(GPIO_Sounds, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-GPIO.setup(GPIO_Vibe,GPIO.IN)      # Echo
-Cur_vibe_State = 0
-Cur_Sounds_State = 0 
-Pre_vibe_State = 0
-Cur_Pir_State = 0
-vibe_flag = 0
+Current_State = 0
 FMT = '%Y-%m-%d %H:%M:%S'
 
-
+print "Waiting for PIR to settle ..."
 try:
-  print "Waiting for PIR to settle ..."
-    # Loop until PIR、Vibe output is 0(not detected), Sound output is 1(not detected) 
-  while GPIO.input(GPIO_PIR)==1 and GPIO.input(GPIO_Vibe)==1 and GPIO.input(GPIO_Vibe) == 0:
-    Cur_Pir_State  = 0
-    Cur_vibe_State  = 0
-    Cur_Sounds_State = 1
+  while GPIO.input(GPIO_PIR)==1:
+    Current_State  = 0
     print "  Ready"
 
   while True:
       humidity, temperature = Adafruit_DHT.read_retry(sensor, pin)
-      Cur_Pir_State = GPIO.input(GPIO_PIR)
-      Cur_vibe_State = GPIO.input(GPIO_Vibe)
-      Cur_Sounds_State = GPIO.input(GPIO_Sounds)
+      Current_State = GPIO.input(GPIO_PIR)
+      if humidity is not None and temperature is not None and Current_State==0 :
+          t2 = time.strftime("%Y-%m-%d %H:%M:%S")
+          print('Temp={0:0.1f}*  Humidity={1:0.1f}%'.format(temperature, humidity))
+          # mySql_Con(temperature, humidity, 1)
+          tdelta = datetime.strptime(t2, FMT) - datetime.strptime(t1, FMT)
+          print('Total time:' + str(tdelta))
+          uploadHis(temperature, humidity, 0 ,t2,tdelta)
 
-      if humidity is not None and temperature is not None and Cur_vibe_State==0 and Cur_Sounds_State==1: #pir,vibe not detected
-      
-          loadData(temperature, humidity, vibe_flag)
-
-      elif humidity is not None and temperature is not None and Cur_vibe_State==1 and Cur_Sounds_State==0: #vibe detected
-
-          # PIR is triggered
-          print "  Fall down detected!"
-          LED_flg = not LED_flg
-          GPIO.output(GPIO_LED, LED_flg)
-          vibe_flag = 1
-          Cur_vibe_State = 0
-          Cur_Sounds_State = 1
-
-          loadData(temperature, humidity, vibe_flag)
-
-      elif humidity is not None and temperature is not None and Cur_vibe_State==1 and Cur_Sounds_State==1: #vibe not detected
-          print "  vibe>y \nSound>n"
-          # PIR is triggered
-          vibe_flag = 0
-          Cur_vibe_State = 0
-          Cur_Sounds_State = 1
-
-          loadData(temperature, humidity, vibe_flag)
-
-      elif humidity is not None and temperature is not None and Cur_vibe_State==0 and Cur_Sounds_State==0: #vibe not detected
-          print "  vibe>n \nSound>y"
-          # PIR is triggered
-          vibe_flag = 0
-          Cur_vibe_State = 0
-          Cur_Sounds_State = 1
-
-          loadData(temperature, humidity, vibe_flag)
-
-      elif Cur_Pir_State ==1:   #pir detected
+          time.sleep(5)
+      elif Current_State ==1:
           print('Someone leave!')
+          socketInit.pushUsingOut()
           t2 = time.strftime("%Y-%m-%d %H:%M:%S")
           tdelta = datetime.strptime(t2, FMT) - datetime.strptime(t1, FMT)
           print('Total time:' + str(tdelta))
-          # sys.exit(1)
+          sys.exit(1)
       else:
           print('Failed to get reading. Try again!')
           sys.exit(1)
@@ -186,3 +146,5 @@ except KeyboardInterrupt:
   print "  Quit"
   # Reset GPIO settings
   GPIO.cleanup()
+
+

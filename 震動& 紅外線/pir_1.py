@@ -2,22 +2,24 @@
 import RPi.GPIO as GPIO
 import os
 import time
+import socketInit
 
 # Use BCM GPIO references
 # instead of physical pin numbers
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 # Define GPIO to use on Pi
-GPIO_LED = 4
+# GPIO_LED = 4
 GPIO_PIR = 7
 
 print "PIR Module Test (CTRL-C to exit)"
 
 # Set pin as input
-GPIO.setup(GPIO_LED,GPIO.OUT)
+# GPIO.setup(GPIO_LED,GPIO.OUT)
 GPIO.setup(GPIO_PIR,GPIO.IN)      # Echo
 Current_State = 0
 Previous_State = 0
+
 
 try:
  
@@ -39,13 +41,16 @@ try:
       # PIR is triggered
       print "  Motion detected!"
       #If Motion detected, light up the LED
-      for i in range(10):
-        GPIO.output(4,1)
-        time.sleep(0.2)
-        GPIO.output(4,0)
-        time.sleep(0.2)
+      # for i in range(10):
+      #   GPIO.output(4,1)
+      #   time.sleep(0.2)
+      #   GPIO.output(4,0)
+      #   time.sleep(0.2)
+
+      socketInit.pushUsingIn()
       os.system("python Trans_DHT.py 11 17")
-      
+      #mySql_Con()
+
       # Record previous state
       Previous_State=1
     elif Current_State==0 and Previous_State==1:
@@ -60,5 +65,7 @@ except KeyboardInterrupt:
   print "  Quit"
   # Reset GPIO settings
   GPIO.cleanup()
+
+
 
 
